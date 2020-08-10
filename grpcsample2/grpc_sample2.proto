@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "grpc-sample/grpcsample";
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.routeguide";
+option java_outer_classname = "RouteGuideProto";
+
+package grpcsample;
+
+service GrpcSample2 {
+    rpc Pong(PongOut) returns (PongOut) {}
+}
+
+message PongIn {
+    string message = 1;
+}
+
+message PongOut {
+    string message = 1;
+}
