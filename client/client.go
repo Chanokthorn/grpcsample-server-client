@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	pb "github.com/Chanokthorn/grpcsample"
 	"github.com/davecgh/go-spew/spew"
 	"google.golang.org/grpc"
@@ -26,6 +27,28 @@ type Token struct {
 	Permission []string `json:"permission"`
 }
 
+func grpcClientInterceptor(
+	ctx context.Context,
+	method string,
+	req interface{},
+	reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption) error {
+	token := Token{
+		Access:     "john access",
+		Subject:    "john subject",
+		Permission: []string{"perm1", "perm2"},
+	}
+	tokenString, err := json.Marshal(&token)
+	if err != nil {
+		return err
+	}
+	newCtx := metadata.AppendToOutgoingContext(ctx, "token", string(tokenString))
+	err = invoker(newCtx, method, req, reply, cc, opts...)
+	return err
+}
+
 func main() {
 	flag.Parse()
 	var opts []grpc.DialOption
@@ -42,6 +65,7 @@ func main() {
 		opts = append(opts, grpc.WithInsecure())
 	}
 	opts = append(opts, grpc.WithBlock())
+	opts = append(opts, grpc.WithUnaryInterceptor(grpcClientInterceptor))
 	conn, err := grpc.Dial(*serverAddr, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
@@ -49,16 +73,9 @@ func main() {
 	defer conn.Close()
 	client := pb.NewGrpcSampleClient(conn)
 	ctx := context.Background()
-	token := Token{
-		Access:     "john access",
-		Subject:    "john subject",
-		Permission: []string{"perm1", "perm2"},
-	}
-	tokenBytes, _ := json.Marshal(token)
-	ctx = metadata.AppendToOutgoingContext(ctx, "token", string(tokenBytes))
 	result, err := client.Ping(ctx, &pb.PongIn{Message: "john"})
 	if err != nil {
-		panic(err)
+		fmt.Print("error from john")
 	}
 	spew.Dump(result)
 }
